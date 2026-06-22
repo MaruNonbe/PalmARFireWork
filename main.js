@@ -513,7 +513,7 @@ function createSpark(position, velocity, colorHex, life, size, mode, target = nu
     color,
     life,
     maxLife: life,
-    size * 35 ,
+    size: size * 35,
     mode,
     target,
     age: 0,
