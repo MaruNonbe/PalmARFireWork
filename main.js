@@ -176,7 +176,7 @@ async function startExperience() {
     modelComplexity: 1,
     minDetectionConfidence: 0.65,
     minTrackingConfidence: 0.55,
-    selfieMode: true,
+    selfieMode: false,
   });
   hands.onResults(onHandResults);
 
