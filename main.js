@@ -49,14 +49,21 @@ let sounds = {};
 let hands = null;
 let launchTimer = 0;
 
-initThree();
-createParticleSystems();
-setTextTargets(currentText);
-animate();
+try {
+  initThree();
+  createParticleSystems();
+  setTextTargets(currentText);
+  animate();
+  console.log('✅ Three.js 初期化完了');
+} catch (e) {
+  console.error('❌ 初期化エラー:', e);
+  statusEl.textContent = '初期化エラー: ' + e.message;
+}
 
 startBtn.addEventListener('click', startExperience);
 
 fireBtn.addEventListener('click', () => {
+  console.log('🎆 花火ボタンが押されました');
   showFireworks = true;
 
   // iPhone実機で手の判定が一瞬不安定でも、ボタンを押した瞬間に表示させる
@@ -65,6 +72,7 @@ fireBtn.addEventListener('click', () => {
 
   statusEl.textContent = '花火起動中';
   resetFirework(true);
+  console.log('🎆 sparks数:', sparks.length, 'fireworkRunning:', fireworkRunning);
 });
 
 soundBtn.addEventListener('click', () => {
@@ -275,6 +283,7 @@ async function startVideoStream(stream, message) {
   applyTextBtn.disabled = false;
 
   statusEl.textContent = message;
+  console.log('✅ カメラ起動完了。fireBtn.disabled =', fireBtn.disabled);
 
   async function processFrame() {
     if (hands && video.readyState >= 2) {
