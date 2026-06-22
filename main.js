@@ -278,7 +278,12 @@ async function startVideoStream(stream, message) {
 
   async function processFrame() {
     if (hands && video.readyState >= 2) {
-      await hands.send({ image: video });
+      try {
+        await hands.send({ image: video });
+      } catch (e) {
+        // モデル読み込み中のエラーは無視してループを継続
+        console.warn('hands.send error (ignored):', e);
+      }
     }
 
     requestAnimationFrame(processFrame);
