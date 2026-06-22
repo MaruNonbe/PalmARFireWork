@@ -16,7 +16,7 @@ html, body {
   object-fit: cover;
 }
 #camera {
-  transform: scaleX(-1);
+  transform: none;
   z-index: 0;
 }
 #threeCanvas {
