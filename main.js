@@ -339,12 +339,18 @@ function onHandResults(results) {
       palmWorld = screenToWorld(palm.x, palm.y, CONFIG.palmDepth);
       palmWorld.y += CONFIG.palmOffsetY;
 
-      statusEl.textContent = showFireworks
-        ? '手のひら検出中：花火表示'
-        : '手のひら検出中：花火開始を押してください';
+// 手のひらを検出したら自動で花火を開始
+if (!showFireworks) {
+  showFireworks = true;
+}
 
-      return;
-    }
+if (!fireworkRunning) {
+  resetFirework(true);
+}
+
+statusEl.textContent = '手のひら検出中：花火表示';
+
+return;    }
   }
 
   handVisible = false;
@@ -507,7 +513,7 @@ function createSpark(position, velocity, colorHex, life, size, mode, target = nu
     color,
     life,
     maxLife: life,
-    size,
+    size * 35 ,
     mode,
     target,
     age: 0,
