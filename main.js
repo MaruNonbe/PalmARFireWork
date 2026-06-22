@@ -184,7 +184,7 @@ async function startExperience() {
     onFrame: async () => { await hands.send({ image: video }); },
     width: 1280,
     height: 720,
-    facingMode: 'user',
+    facingMode: 'environment',
   });
 
   try {
