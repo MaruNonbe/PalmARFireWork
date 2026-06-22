@@ -180,25 +180,67 @@ async function startExperience() {
   });
   hands.onResults(onHandResults);
 
-  mpCamera = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 1280,
-    height: 720,
-    facingMode: 'environment',
+try {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { exact: 'environment' },
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    },
+    audio: false
   });
 
+  video.srcObject = stream;
+  await video.play();
+
+  async function processFrame() {
+    if (hands && video.readyState >= 2) {
+      await hands.send({ image: video });
+    }
+    requestAnimationFrame(processFrame);
+  }
+
+  processFrame();
+
+  fireBtn.disabled = false;
+  soundBtn.disabled = false;
+  applyTextBtn.disabled = false;
+  statusEl.textContent = '背面カメラ起動中：手のひらをカメラに向けてください';
+} catch (err) {
+  console.error(err);
+
   try {
-    await mpCamera.start();
+    const fallbackStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+
+    video.srcObject = fallbackStream;
+    await video.play();
+
+    async function processFrameFallback() {
+      if (hands && video.readyState >= 2) {
+        await hands.send({ image: video });
+      }
+      requestAnimationFrame(processFrameFallback);
+    }
+
+    processFrameFallback();
+
     fireBtn.disabled = false;
     soundBtn.disabled = false;
     applyTextBtn.disabled = false;
-    statusEl.textContent = '手のひらをカメラに向けてください';
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'カメラを起動できません。HTTPS環境とカメラ許可を確認してください。';
+    statusEl.textContent = 'カメラ起動中：手のひらをカメラに向けてください';
+  } catch (fallbackErr) {
+    console.error(fallbackErr);
+    statusEl.textContent = '背面カメラを起動できません。HTTPS環境とカメラ許可を確認してください。';
     startBtn.disabled = false;
   }
-}
+}}
 
 async function unlockAudio() {
   if (audioUnlocked) return;
