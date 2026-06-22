@@ -112,6 +112,14 @@ function initThree() {
   clock = new THREE.Clock();
 
   window.addEventListener('resize', onResize);
+
+  // ★ 描画テスト用：赤い球体（動作確認後に削除）
+  const testGeo = new THREE.SphereGeometry(0.15, 16, 16);
+  const testMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const testMesh = new THREE.Mesh(testGeo, testMat);
+  testMesh.position.set(0, 0, -2.5);
+  scene.add(testMesh);
+  console.log('🔴 テスト球体をシーンに追加しました（中央に赤丸が見えるはず）');
 }
 
 function createParticleSystems() {
@@ -685,6 +693,17 @@ function updateSparks(dt, visible) {
   sparkSystem.geometry.attributes.color.needsUpdate = true;
   sparkSystem.geometry.attributes.size.needsUpdate = true;
   sparkSystem.geometry.attributes.alpha.needsUpdate = true;
+
+  // デバッグ：最初のスパークの値を1度だけ確認
+  if (sparks.length > 0 && !window._sparkLogged) {
+    window._sparkLogged = true;
+    const s0 = sparks[0];
+    console.log('🎇 spark[0] pos:', s0.p.x.toFixed(2), s0.p.y.toFixed(2), s0.p.z.toFixed(2),
+      '| size:', s0.size.toFixed(3), '| alpha:', s0.alpha.toFixed(3),
+      '| life:', s0.life.toFixed(3));
+    console.log('🎇 sparkPositions[0..2]:', sparkPositions[0].toFixed(2), sparkPositions[1].toFixed(2), sparkPositions[2].toFixed(2));
+    console.log('🎇 sparkSizes[0]:', sparkSizes[0].toFixed(3), '| sparkAlphas[0]:', sparkAlphas[0].toFixed(3));
+  }
 }
 
 function updateSmokes(dt, visible) {
