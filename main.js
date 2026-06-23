@@ -1,3 +1,4 @@
+```javascript
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js';
 
 const CONFIG = {
@@ -5,16 +6,9 @@ const CONFIG = {
   colors: [0xff3030, 0xffd36b, 0x3fa7ff, 0xffffff],
   maxSparks: 1250,
   maxSmoke: 170,
-
-  // 手の検出が一瞬途切れても、すぐ花火を消さない
   handLostFadeSec: 2.0,
-
-  // 手のひらより少し上
   palmOffsetY: 0.38,
-
-  // 近めに表示して見えやすくする
   palmDepth: -2.5,
-
   textSampleStep: 5,
   letterParticleScale: 0.0105,
 };
@@ -31,8 +25,8 @@ const statusEl = document.getElementById('status');
 
 let scene, camera, renderer, clock;
 let sparkSystem, smokeSystem;
-let sparkPositions, sparkColors, sparkSizes, sparkAlphas;
-let smokePositions, smokeSizes, smokeAlphas;
+let sparkPositions, sparkColors;
+let smokePositions, smokeColors;
 let sparks = [];
 let smokes = [];
 let currentText = CONFIG.defaultText;
@@ -49,30 +43,23 @@ let sounds = {};
 let hands = null;
 let launchTimer = 0;
 
-try {
-  initThree();
-  createParticleSystems();
-  setTextTargets(currentText);
-  animate();
-  console.log('✅ Three.js 初期化完了');
-} catch (e) {
-  console.error('❌ 初期化エラー:', e);
-  statusEl.textContent = '初期化エラー: ' + e.message;
-}
+initThree();
+createParticleSystems();
+setTextTargets(currentText);
+animate();
 
 startBtn.addEventListener('click', startExperience);
 
 fireBtn.addEventListener('click', () => {
-  console.log('🎆 花火ボタンが押されました');
   showFireworks = true;
-
-  // iPhone実機で手の判定が一瞬不安定でも、ボタンを押した瞬間に表示させる
   handVisible = true;
   lastHandTime = performance.now() / 1000;
 
+  palmWorld.set(0, 0, -2.2);
+  lastPalmWorld.set(0, 0, -2.2);
+
   statusEl.textContent = '花火起動中';
   resetFirework(true);
-  console.log('🎆 sparks数:', sparks.length, 'fireworkRunning:', fireworkRunning);
 });
 
 soundBtn.addEventListener('click', () => {
@@ -112,14 +99,6 @@ function initThree() {
   clock = new THREE.Clock();
 
   window.addEventListener('resize', onResize);
-
-  // ★ 描画テスト用：赤い球体（動作確認後に削除）
-  const testGeo = new THREE.SphereGeometry(0.15, 16, 16);
-  const testMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const testMesh = new THREE.Mesh(testGeo, testMat);
-  testMesh.position.set(0, 0, -2.5);
-  scene.add(testMesh);
-  console.log('🔴 テスト球体をシーンに追加しました（中央に赤丸が見えるはず）');
 }
 
 function createParticleSystems() {
@@ -127,52 +106,25 @@ function createParticleSystems() {
 
   sparkPositions = new Float32Array(CONFIG.maxSparks * 3);
   sparkColors = new Float32Array(CONFIG.maxSparks * 3);
-  sparkSizes = new Float32Array(CONFIG.maxSparks);
-  sparkAlphas = new Float32Array(CONFIG.maxSparks);
+
+  for (let i = 0; i < CONFIG.maxSparks; i++) {
+    const j = i * 3;
+    sparkPositions[j] = 999;
+    sparkPositions[j + 1] = 999;
+    sparkPositions[j + 2] = 999;
+  }
 
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
   sparkGeometry.setAttribute('color', new THREE.BufferAttribute(sparkColors, 3));
-  sparkGeometry.setAttribute('size', new THREE.BufferAttribute(sparkSizes, 1));
-  sparkGeometry.setAttribute('alpha', new THREE.BufferAttribute(sparkAlphas, 1));
 
-  const sparkMaterial = new THREE.ShaderMaterial({
+  const sparkMaterial = new THREE.PointsMaterial({
+    size: 0.12,
+    vertexColors: true,
     transparent: true,
+    opacity: 1.0,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    vertexColors: true,
-    uniforms: {
-      pixelRatio: { value: renderer.getPixelRatio() },
-    },
-    vertexShader: `
-      attribute float size;
-      attribute float alpha;
-      varying vec3 vColor;
-      varying float vAlpha;
-      uniform float pixelRatio;
-
-      void main() {
-        vColor = color;
-        vAlpha = alpha;
-
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * pixelRatio * (260.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      varying vec3 vColor;
-      varying float vAlpha;
-
-      void main() {
-        vec2 uv = gl_PointCoord - vec2(0.5);
-        float d = length(uv);
-
-        float core = smoothstep(0.5, 0.0, d);
-        float glow = smoothstep(0.5, 0.08, d) * 0.55;
-
-        gl_FragColor = vec4(vColor * (1.2 + glow), (core + glow) * vAlpha);
-      }
-    `,
+    sizeAttenuation: true,
   });
 
   sparkSystem = new THREE.Points(sparkGeometry, sparkMaterial);
@@ -181,45 +133,29 @@ function createParticleSystems() {
   const smokeGeometry = new THREE.BufferGeometry();
 
   smokePositions = new Float32Array(CONFIG.maxSmoke * 3);
-  smokeSizes = new Float32Array(CONFIG.maxSmoke);
-  smokeAlphas = new Float32Array(CONFIG.maxSmoke);
+  smokeColors = new Float32Array(CONFIG.maxSmoke * 3);
+
+  for (let i = 0; i < CONFIG.maxSmoke; i++) {
+    const j = i * 3;
+    smokePositions[j] = 999;
+    smokePositions[j + 1] = 999;
+    smokePositions[j + 2] = 999;
+    smokeColors[j] = 0.55;
+    smokeColors[j + 1] = 0.55;
+    smokeColors[j + 2] = 0.6;
+  }
 
   smokeGeometry.setAttribute('position', new THREE.BufferAttribute(smokePositions, 3));
-  smokeGeometry.setAttribute('size', new THREE.BufferAttribute(smokeSizes, 1));
-  smokeGeometry.setAttribute('alpha', new THREE.BufferAttribute(smokeAlphas, 1));
+  smokeGeometry.setAttribute('color', new THREE.BufferAttribute(smokeColors, 3));
 
-  const smokeMaterial = new THREE.ShaderMaterial({
+  const smokeMaterial = new THREE.PointsMaterial({
+    size: 0.35,
+    vertexColors: true,
     transparent: true,
+    opacity: 0.35,
     depthWrite: false,
     blending: THREE.NormalBlending,
-    uniforms: {
-      pixelRatio: { value: renderer.getPixelRatio() },
-    },
-    vertexShader: `
-      attribute float size;
-      attribute float alpha;
-      varying float vAlpha;
-      uniform float pixelRatio;
-
-      void main() {
-        vAlpha = alpha;
-
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * pixelRatio * (250.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      varying float vAlpha;
-
-      void main() {
-        vec2 uv = gl_PointCoord - vec2(0.5);
-        float d = length(uv);
-        float a = smoothstep(0.5, 0.0, d) * vAlpha;
-
-        gl_FragColor = vec4(0.55, 0.55, 0.6, a);
-      }
-    `,
+    sizeAttenuation: true,
   });
 
   smokeSystem = new THREE.Points(smokeGeometry, smokeMaterial);
@@ -242,8 +178,6 @@ async function startExperience() {
     modelComplexity: 1,
     minDetectionConfidence: 0.55,
     minTrackingConfidence: 0.45,
-
-    // 背面カメラ用
     selfieMode: false,
   });
 
@@ -261,8 +195,6 @@ async function startExperience() {
 
     await startVideoStream(stream, '背面カメラ起動中：手のひらをカメラに向けてください');
   } catch (err) {
-    console.warn('背面カメラ exact 指定に失敗。ideal 指定で再試行します。', err);
-
     try {
       const fallbackStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -291,15 +223,13 @@ async function startVideoStream(stream, message) {
   applyTextBtn.disabled = false;
 
   statusEl.textContent = message;
-  console.log('✅ カメラ起動完了。fireBtn.disabled =', fireBtn.disabled);
 
   async function processFrame() {
     if (hands && video.readyState >= 2) {
       try {
         await hands.send({ image: video });
       } catch (e) {
-        // モデル読み込み中のエラーは無視してループを継続
-        console.warn('hands.send error (ignored):', e);
+        console.warn('hands.send error:', e);
       }
     }
 
@@ -348,31 +278,22 @@ function playSound(name) {
 function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
-
     const openness = estimateHandOpenness(lm);
 
-    // 0.21では厳しすぎるため、実機向けに緩める
     if (openness > 0.12) {
       handVisible = true;
       lastHandTime = performance.now() / 1000;
 
       const palm = getPalmCenter(lm);
-
       palmWorld = screenToWorld(palm.x, palm.y, CONFIG.palmDepth);
       palmWorld.y += CONFIG.palmOffsetY;
 
-// 手のひらを検出したら自動で花火を開始
-if (!showFireworks) {
-  showFireworks = true;
-}
+      if (!showFireworks) showFireworks = true;
+      if (!fireworkRunning) resetFirework(true);
 
-if (!fireworkRunning) {
-  resetFirework(true);
-}
-
-statusEl.textContent = '手のひら検出中：花火表示';
-
-return;    }
+      statusEl.textContent = '手のひら検出中：花火表示';
+      return;
+    }
   }
 
   handVisible = false;
@@ -417,13 +338,11 @@ function estimateHandOpenness(lm) {
 }
 
 function screenToWorld(nx, ny, z) {
-  // 背面カメラの場合は左右反転しない
   const xNdc = nx * 2 - 1;
   const yNdc = -(ny * 2 - 1);
 
   const v = new THREE.Vector3(xNdc, yNdc, 0.5).unproject(camera);
   const dir = v.sub(camera.position).normalize();
-
   const distance = (z - camera.position.z) / dir.z;
 
   return camera.position.clone().add(dir.multiplyScalar(distance));
@@ -441,22 +360,21 @@ function resetFirework(force = false) {
 }
 
 function spawnLaunch() {
-  const origin = lastPalmWorld.clone().add(new THREE.Vector3(0, -0.55, 0));
-  const target = lastPalmWorld.clone().add(new THREE.Vector3(0, 0.55, 0));
+  const origin = lastPalmWorld.clone().add(new THREE.Vector3(0, -0.45, 0));
+  const target = lastPalmWorld.clone().add(new THREE.Vector3(0, 0.4, 0));
 
-  for (let i = 0; i < 90; i++) {
-    const t = i / 90;
+  for (let i = 0; i < 120; i++) {
+    const t = i / 120;
     const p = origin.clone().lerp(target, t);
 
-    p.x += rand(-0.025, 0.025);
-    p.y += rand(-0.025, 0.025);
+    p.x += rand(-0.035, 0.035);
+    p.y += rand(-0.035, 0.035);
 
     createSpark(
       p,
-      new THREE.Vector3(rand(-0.05, 0.05), rand(0.55, 1.2), rand(-0.04, 0.04)),
+      new THREE.Vector3(rand(-0.06, 0.06), rand(0.65, 1.25), rand(-0.04, 0.04)),
       0xffd36b,
-      0.9,
-      rand(0.018, 0.034),
+      1.0,
       'launch'
     );
   }
@@ -467,22 +385,15 @@ function spawnLaunch() {
 function spawnExplosion() {
   const center = lastPalmWorld.clone().add(new THREE.Vector3(0, 0.25, 0));
 
-  for (let i = 0; i < 620; i++) {
+  for (let i = 0; i < 1000; i++) {
     const dir = randomSphereDirection();
-    const speed = rand(0.8, 2.7);
+    const speed = rand(0.8, 2.8);
     const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
 
-    createSpark(
-      center,
-      dir.multiplyScalar(speed),
-      color,
-      rand(1.3, 2.2),
-      rand(0.018, 0.045),
-      'explode'
-    );
+    createSpark(center, dir.multiplyScalar(speed), color, rand(1.3, 2.2), 'explode');
   }
 
-  for (let i = 0; i < 65; i++) {
+  for (let i = 0; i < 70; i++) {
     createSmoke(center.clone().add(randomSphereDirection().multiplyScalar(rand(0.05, 0.55))));
   }
 
@@ -513,7 +424,6 @@ function spawnTextGather() {
       randomSphereDirection().multiplyScalar(rand(0.1, 0.45)),
       color,
       rand(2.3, 3.4),
-      rand(0.016, 0.035),
       'text',
       target3
     );
@@ -522,7 +432,7 @@ function spawnTextGather() {
   playSound('sparkle');
 }
 
-function createSpark(position, velocity, colorHex, life, size, mode, target = null) {
+function createSpark(position, velocity, colorHex, life, mode, target = null) {
   if (sparks.length >= CONFIG.maxSparks) {
     sparks.shift();
   }
@@ -535,7 +445,6 @@ function createSpark(position, velocity, colorHex, life, size, mode, target = nu
     color,
     life,
     maxLife: life,
-    size: size * 35,
     mode,
     target,
     age: 0,
@@ -555,7 +464,6 @@ function createSmoke(position) {
     v: new THREE.Vector3(rand(-0.08, 0.08), rand(0.03, 0.16), rand(-0.04, 0.04)),
     life: rand(1.2, 2.2),
     maxLife: 2.2,
-    size: rand(0.10, 0.22),
     alpha: rand(0.16, 0.33),
   });
 }
@@ -564,7 +472,6 @@ function setTextTargets(text) {
   const ctx = textCanvas.getContext('2d');
 
   ctx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -600,9 +507,7 @@ function animate() {
 
   lastPalmWorld.lerp(palmWorld, 0.25);
 
-  // 手の検出が一瞬途切れても花火を維持する
   const recentlyHadHand = handVisible || now - lastHandTime < CONFIG.handLostFadeSec;
-
   const visible = showFireworks && recentlyHadHand;
 
   if (!visible) {
@@ -657,11 +562,10 @@ function updateSparks(dt, visible) {
     }
 
     s.p.addScaledVector(s.v, dt);
-
     s.p.x += Math.sin(s.age * s.wobble * 7 + s.phase) * 0.003;
     s.p.y += Math.cos(s.age * s.wobble * 5 + s.phase) * 0.002;
 
-    s.alpha = Math.max(0, s.life / s.maxLife) * (visible ? 1 : 0.2);
+    s.alpha = Math.max(0, s.life / s.maxLife) * (visible ? 1 : 0.15);
   }
 
   for (let i = 0; i < CONFIG.maxSparks; i++) {
@@ -673,37 +577,22 @@ function updateSparks(dt, visible) {
       sparkPositions[j + 1] = s.p.y;
       sparkPositions[j + 2] = s.p.z;
 
-      sparkColors[j] = s.color.r;
-      sparkColors[j + 1] = s.color.g;
-      sparkColors[j + 2] = s.color.b;
-
-      sparkSizes[i] = s.size * (s.mode === 'text' ? 1.15 : 1.0);
-      sparkAlphas[i] = s.alpha;
+      sparkColors[j] = s.color.r * s.alpha;
+      sparkColors[j + 1] = s.color.g * s.alpha;
+      sparkColors[j + 2] = s.color.b * s.alpha;
     } else {
       sparkPositions[j] = 999;
       sparkPositions[j + 1] = 999;
       sparkPositions[j + 2] = 999;
 
-      sparkSizes[i] = 0;
-      sparkAlphas[i] = 0;
+      sparkColors[j] = 0;
+      sparkColors[j + 1] = 0;
+      sparkColors[j + 2] = 0;
     }
   }
 
   sparkSystem.geometry.attributes.position.needsUpdate = true;
   sparkSystem.geometry.attributes.color.needsUpdate = true;
-  sparkSystem.geometry.attributes.size.needsUpdate = true;
-  sparkSystem.geometry.attributes.alpha.needsUpdate = true;
-
-  // デバッグ：最初のスパークの値を1度だけ確認
-  if (sparks.length > 0 && !window._sparkLogged) {
-    window._sparkLogged = true;
-    const s0 = sparks[0];
-    console.log('🎇 spark[0] pos:', s0.p.x.toFixed(2), s0.p.y.toFixed(2), s0.p.z.toFixed(2),
-      '| size:', s0.size.toFixed(3), '| alpha:', s0.alpha.toFixed(3),
-      '| life:', s0.life.toFixed(3));
-    console.log('🎇 sparkPositions[0..2]:', sparkPositions[0].toFixed(2), sparkPositions[1].toFixed(2), sparkPositions[2].toFixed(2));
-    console.log('🎇 sparkSizes[0]:', sparkSizes[0].toFixed(3), '| sparkAlphas[0]:', sparkAlphas[0].toFixed(3));
-  }
 }
 
 function updateSmokes(dt, visible) {
@@ -718,7 +607,6 @@ function updateSmokes(dt, visible) {
     }
 
     s.p.addScaledVector(s.v, dt);
-    s.size += dt * 0.08;
     s.alpha *= visible ? 0.992 : 0.90;
   }
 
@@ -727,25 +615,28 @@ function updateSmokes(dt, visible) {
     const j = i * 3;
 
     if (s) {
+      const a = s.alpha * Math.max(0, s.life / s.maxLife);
+
       smokePositions[j] = s.p.x;
       smokePositions[j + 1] = s.p.y;
       smokePositions[j + 2] = s.p.z;
 
-      smokeSizes[i] = s.size;
-      smokeAlphas[i] = s.alpha * Math.max(0, s.life / s.maxLife);
+      smokeColors[j] = 0.55 * a;
+      smokeColors[j + 1] = 0.55 * a;
+      smokeColors[j + 2] = 0.6 * a;
     } else {
       smokePositions[j] = 999;
       smokePositions[j + 1] = 999;
       smokePositions[j + 2] = 999;
 
-      smokeSizes[i] = 0;
-      smokeAlphas[i] = 0;
+      smokeColors[j] = 0;
+      smokeColors[j + 1] = 0;
+      smokeColors[j + 2] = 0;
     }
   }
 
   smokeSystem.geometry.attributes.position.needsUpdate = true;
-  smokeSystem.geometry.attributes.size.needsUpdate = true;
-  smokeSystem.geometry.attributes.alpha.needsUpdate = true;
+  smokeSystem.geometry.attributes.color.needsUpdate = true;
 }
 
 function onResize() {
@@ -754,9 +645,6 @@ function onResize() {
 
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  sparkSystem.material.uniforms.pixelRatio.value = renderer.getPixelRatio();
-  smokeSystem.material.uniforms.pixelRatio.value = renderer.getPixelRatio();
 }
 
 function rand(min, max) {
@@ -781,3 +669,4 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }
+```
