@@ -162,6 +162,7 @@ function createParticleSystems() {
 }
 
 async function startExperience() {
+  alert('start clicked');
   startBtn.disabled = true;
   statusEl.textContent = 'カメラ起動中...';
 
