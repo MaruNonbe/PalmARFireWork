@@ -1,4 +1,3 @@
-```javascript
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js';
 
 const CONFIG = {
@@ -669,4 +668,3 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }
-```
