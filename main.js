@@ -1,4 +1,3 @@
-```javascript
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js';
 
 const video = document.getElementById('camera');
@@ -227,4 +226,3 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
-```
