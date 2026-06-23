@@ -224,6 +224,15 @@ async function startVideoStream(stream, message) {
 
   statusEl.textContent = message;
 
+// カメラ起動後、花火を強制表示
+showFireworks = true;
+handVisible = true;
+lastHandTime = performance.now() / 1000;
+palmWorld.set(0, 0, -2.2);
+lastPalmWorld.set(0, 0, -2.2);
+resetFirework(true);
+statusEl.textContent = 'カメラ起動：花火テスト表示中';
+
   async function processFrame() {
     if (hands && video.readyState >= 2) {
       try {
