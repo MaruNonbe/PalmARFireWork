@@ -28,27 +28,12 @@ startBtn.addEventListener('click', startCamera);
 fireBtn.addEventListener('click', () => {
   alert('花火開始ボタンOK');
 
-  const colors = [0xff3030, 0xffd36b, 0x3fa7ff, 0xffffff];
+  spawnFireworks();
 
-  for (let i = 0; i < 120; i++) {
-    const geo = new THREE.SphereGeometry(0.025, 8, 8);
-    const mat = new THREE.MeshBasicMaterial({
-      color: colors[i % colors.length]
-    });
-
-    const m = new THREE.Mesh(geo, mat);
-
-    const a = Math.random() * Math.PI * 2;
-    const r = Math.random() * 0.9;
-
-    m.position.set(
-      Math.cos(a) * r,
-      Math.sin(a) * r,
-      -2.2
-    );
-
-    scene.add(m);
-  }
+  fireBtn.textContent = '花火表示中';
+  fireBtn.style.background = '#ff3030';
+  statusEl.textContent = '花火表示中';
+});
 
   fireBtn.textContent = '花火表示中';
   statusEl.textContent = '球体花火テスト表示中';
@@ -120,14 +105,14 @@ function initThree() {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  const material = new THREE.PointsMaterial({
-    size: 0.13,
-    vertexColors: true,
-    transparent: true,
-    opacity: 1,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
+const material = new THREE.PointsMaterial({
+  size: 0.35,
+  vertexColors: true,
+  transparent: true,
+  opacity: 1,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
 
   particles = new THREE.Points(geometry, material);
   scene.add(particles);
