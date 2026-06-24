@@ -113,13 +113,6 @@ function initThree() {
 
   window.addEventListener('resize', onResize);
 
-  // ★ 描画テスト用：赤い球体（動作確認後に削除）
-  const testGeo = new THREE.SphereGeometry(0.15, 16, 16);
-  const testMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const testMesh = new THREE.Mesh(testGeo, testMat);
-  testMesh.position.set(0, 0, -2.5);
-  scene.add(testMesh);
-  console.log('🔴 テスト球体をシーンに追加しました（中央に赤丸が見えるはず）');
 }
 
 function createParticleSystems() {
@@ -131,7 +124,7 @@ function createParticleSystems() {
   sparkAlphas = new Float32Array(CONFIG.maxSparks);
 
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
-  sparkGeometry.setAttribute('color', new THREE.BufferAttribute(sparkColors, 3));
+  sparkGeometry.setAttribute('aColor', new THREE.BufferAttribute(sparkColors, 3));
   sparkGeometry.setAttribute('size', new THREE.BufferAttribute(sparkSizes, 1));
   sparkGeometry.setAttribute('alpha', new THREE.BufferAttribute(sparkAlphas, 1));
 
@@ -139,19 +132,19 @@ function createParticleSystems() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    vertexColors: true,
     uniforms: {
       pixelRatio: { value: renderer.getPixelRatio() },
     },
     vertexShader: `
       attribute float size;
       attribute float alpha;
+      attribute vec3 aColor;
       varying vec3 vColor;
       varying float vAlpha;
       uniform float pixelRatio;
 
       void main() {
-        vColor = color;
+        vColor = aColor;
         vAlpha = alpha;
 
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -690,20 +683,10 @@ function updateSparks(dt, visible) {
   }
 
   sparkSystem.geometry.attributes.position.needsUpdate = true;
-  sparkSystem.geometry.attributes.color.needsUpdate = true;
+  sparkSystem.geometry.attributes.aColor.needsUpdate = true;
   sparkSystem.geometry.attributes.size.needsUpdate = true;
   sparkSystem.geometry.attributes.alpha.needsUpdate = true;
 
-  // デバッグ：最初のスパークの値を1度だけ確認
-  if (sparks.length > 0 && !window._sparkLogged) {
-    window._sparkLogged = true;
-    const s0 = sparks[0];
-    console.log('🎇 spark[0] pos:', s0.p.x.toFixed(2), s0.p.y.toFixed(2), s0.p.z.toFixed(2),
-      '| size:', s0.size.toFixed(3), '| alpha:', s0.alpha.toFixed(3),
-      '| life:', s0.life.toFixed(3));
-    console.log('🎇 sparkPositions[0..2]:', sparkPositions[0].toFixed(2), sparkPositions[1].toFixed(2), sparkPositions[2].toFixed(2));
-    console.log('🎇 sparkSizes[0]:', sparkSizes[0].toFixed(3), '| sparkAlphas[0]:', sparkAlphas[0].toFixed(3));
-  }
 }
 
 function updateSmokes(dt, visible) {
